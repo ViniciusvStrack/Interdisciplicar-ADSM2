@@ -1,6 +1,6 @@
 package com.projetointer.backend.task;
 
-import javax.validation.Valid;
+import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;

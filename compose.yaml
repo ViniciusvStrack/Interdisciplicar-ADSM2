@@ -2,7 +2,7 @@ services:
   mysql:
     image: mysql:8.4
     environment:
-      MYSQL_DATABASE: projeto_inter
+      MYSQL_DATABASE: academia
       MYSQL_USER: projeto
       MYSQL_PASSWORD: projeto123
       MYSQL_ROOT_PASSWORD: root123
