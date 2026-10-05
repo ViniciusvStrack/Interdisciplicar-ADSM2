@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
 import './App.css'
+import PaymentDemo from './PaymentDemo'
 
 type Role = 'STUDENT' | 'TEACHER'
 type User = { id: number; name: string; email: string; phone: string; role: Role }
@@ -55,7 +56,7 @@ function App() {
     return <AuthPage mode={page} onBack={() => setPage('home')} onAuthenticated={value => { setUser(value); setPage('dashboard') }} onSwitch={setPage} />
   }
   if (page === 'dashboard' && user) {
-    return <Dashboard user={user} classes={classes} onLogout={logout} notify={notify} />
+    return <><Dashboard user={user} classes={classes} onLogout={logout} notify={notify} />{message && <div className="toast" role="status">{message}</div>}</>
   }
 
   return <>
@@ -113,19 +114,26 @@ function Dashboard({ user, classes, onLogout, notify }: { user: User; classes: C
 function StudentDashboard({ user, classes, onLogout, notify }: { user: User; classes: ClassItem[]; onLogout: () => void; notify: (text: string) => void }) {
   const [enrollments, setEnrollments] = useState<Enrollment[]>([])
   const [error, setError] = useState('')
-  const load = () => request<{ enrollments: Enrollment[] }>('/student/dashboard').then(value => setEnrollments(value.enrollments)).catch(e => setError(e.message))
-  useEffect(() => { void load() }, [])
-  const enroll = async (item: ClassItem) => {
-    try { await request('/student/enrollments', { method: 'POST', body: JSON.stringify({ classOfferingId: item.id }) }); await load(); notify('Inscrição realizada com sucesso!') }
-    catch (e) { notify(e instanceof Error ? e.message : 'Não foi possível inscrever.') }
+  const [checkout, setCheckout] = useState<ClassItem | null>(() => {
+    const desired = Number(sessionStorage.getItem('desiredClass'))
+    return classes.find(item => item.id === desired && item.available) ?? null
+  })
+  const load = () => request<{ enrollments: Enrollment[] }>('/student/dashboard').then(value => { setEnrollments(value.enrollments); setError('') }).catch(e => setError(e.message))
+  useEffect(() => { sessionStorage.removeItem('desiredClass'); void load() }, [])
+  const confirmEnrollment = async () => {
+    if (!checkout) throw new Error('Escolha uma turma para continuar.')
+    const enrollment = await request<Enrollment>('/student/enrollments', { method: 'POST', body: JSON.stringify({ classOfferingId: checkout.id }) })
+    await load()
+    return enrollment
   }
   const cancel = async (id: number) => {
     try { await request(`/student/enrollments/${id}`, { method: 'DELETE' }); await load(); notify('Inscrição cancelada.') }
     catch (e) { notify(e instanceof Error ? e.message : 'Não foi possível cancelar.') }
   }
+  if (checkout) return <DashboardShell user={user} onLogout={onLogout}><PaymentDemo key={checkout.id} item={checkout} onBack={() => setCheckout(null)} onConfirm={confirmEnrollment}/></DashboardShell>
   return <DashboardShell user={user} onLogout={onLogout}><div className="stats"><Stat label="Minhas inscrições" value={String(enrollments.length)} detail="Atividades confirmadas"/><Stat label="Turmas disponíveis" value={String(classes.filter(c => c.available).length)} detail="Catálogo Spirit Hard"/></div>
     {error && <p className="form-error">{error}</p>}<section className="panel"><div className="panel-title"><div><span>Minha agenda</span><h3>Atividades inscritas</h3></div></div>{enrollments.length === 0 ? <p>Você ainda não possui inscrições.</p> : <div className="agenda">{enrollments.map(item => <div key={item.id}><b>{item.days}</b><strong>{item.timeRange}</strong><p>{item.className}<small>{item.instructor}</small></p><button className="status red" onClick={() => cancel(item.id)}>Cancelar</button></div>)}</div>}</section>
-    <section className="panel class-panel"><div className="panel-title"><div><span>Catálogo</span><h3>Escolha uma nova turma</h3></div></div><ClassList items={classes} action={enroll} actionLabel="Inscrever-se" /></section>
+    <section className="panel class-panel"><div className="panel-title"><div><span>Catálogo</span><h3>Escolha uma nova turma</h3></div></div><ClassList items={classes} action={setCheckout} actionLabel="Inscrever-se" /></section>
   </DashboardShell>
 }
 

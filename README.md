@@ -35,10 +35,20 @@ Novos cadastros feitos pelo site sempre recebem o perfil de aluno. As senhas sã
 - Cadastro e login reais com sessão
 - Catálogo público da Spirit Hard com horários e preços
 - Inscrição somente após autenticação
+- Tela de pagamento demonstrativo antes de confirmar a inscrição, com Pix, cartão e boleto fictícios
 - Painel do aluno com suas inscrições e cancelamento
 - Painel do professor mostrando apenas suas turmas e alunos
 - Bloqueio de inscrição duplicada, turma lotada ou indisponível
 - Dados iniciais dos professores, aluno de demonstração e modalidades
+
+## Demonstração de pagamento para a apresentação
+
+1. Escolha uma turma em **Inscrever-se**. Se estiver fora da conta, faça login ou cadastro; a turma escolhida é mantida.
+2. Na tela **Pagamento demonstrativo**, confira o horário, professor e mensalidade e escolha Pix, cartão ou boleto fictício.
+3. Clique em **Confirmar pagamento simulado**. A inscrição é registrada pelo backend apenas nesta etapa, respeitando as validações existentes de matrícula.
+4. A tela de confirmação informa o número da inscrição, valor demonstrativo e **R$ 0,00 cobrado**. Clique em **Ver minha agenda** para ver a turma.
+
+Não há integração bancária, cobrança, chave Pix real ou coleta de dados de cartão. O pagamento é uma simulação visual para o projeto acadêmico e não gera registro financeiro real; somente a matrícula é persistida. Voltar antes da confirmação não cria inscrição. Se a turma estiver lotada ou a matrícula já existir, a tela mostra o erro da API e não exibe aprovação.
 
 ## API principal
 
@@ -54,3 +64,4 @@ Novos cadastros feitos pelo site sempre recebem o perfil de aluno. As senhas sã
 
 - Backend: `cd backend` e `.\mvnw.cmd clean test`
 - Frontend: `cd frontend`, `npm run build` e `npm run lint`
+- Fluxo de pagamento demonstrativo: `cd frontend`, `npx playwright install chromium` (uma vez) e `npm run test:e2e`. Os testes de interface simulam a API e não alteram os dados do MySQL.
