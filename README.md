@@ -48,7 +48,9 @@ Novos cadastros feitos pelo site sempre recebem o perfil de aluno. As senhas sã
 3. Clique em **Confirmar pagamento simulado**. A inscrição é registrada pelo backend apenas nesta etapa, respeitando as validações existentes de matrícula.
 4. A tela de confirmação informa o número da inscrição, valor demonstrativo e **R$ 0,00 cobrado**. Clique em **Ver minha agenda** para ver a turma.
 
-Não há integração bancária, cobrança, chave Pix real ou coleta de dados de cartão. O pagamento é uma simulação visual para o projeto acadêmico e não gera registro financeiro real; somente a matrícula é persistida. Voltar antes da confirmação não cria inscrição. Se a turma estiver lotada ou a matrícula já existir, a tela mostra o erro da API e não exibe aprovação.
+Não há integração bancária, cobrança, chave Pix real ou coleta de dados de cartão. O pagamento é uma simulação visual para o projeto acadêmico e não gera registro financeiro real; somente a matrícula é persistida. Voltar antes da confirmação não cria inscrição. Se a turma estiver lotada e o aluno não tiver matrícula confirmada nela, a tela mostra o erro da API e não exibe aprovação.
+
+Para repetir a apresentação, uma matrícula já confirmada na mesma turma é reutilizada na tela de confirmação do pagamento simulado, sem gerar outra inscrição. Isso permite demonstrar Pix várias vezes com a mesma conta. Uma turma lotada sem matrícula confirmada continua exibindo erro.
 
 ## API principal
 
@@ -65,3 +67,5 @@ Não há integração bancária, cobrança, chave Pix real ou coleta de dados de
 - Backend: `cd backend` e `.\mvnw.cmd clean test`
 - Frontend: `cd frontend`, `npm run build` e `npm run lint`
 - Fluxo de pagamento demonstrativo: `cd frontend`, `npx playwright install chromium` (uma vez) e `npm run test:e2e`. Os testes de interface simulam a API e não alteram os dados do MySQL.
+
+O teste opcional `payment-demo-live.spec.ts` verifica o Pix repetido com o MySQL real. Requer backend e frontend iniciados e o aluno de demonstração já inscrito em Muay Thai. No PowerShell, defina `$env:RUN_LIVE_DEMO='1'` e execute `npm run test:e2e -- payment-demo-live.spec.ts`. Esse teste reutiliza a inscrição existente e verifica que os dados de matrícula não mudaram.

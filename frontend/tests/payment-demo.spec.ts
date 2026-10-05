@@ -3,10 +3,10 @@ import type { Page } from '@playwright/test'
 
 const item = { id: 11, name: 'Muay Thai', modality: 'Muay Thai', days: 'Segunda, quarta e sexta', timeRange: '19:00–20:00', instructor: 'A. Ribeiro', price: 80, capacity: 30, available: true }
 const user = { id: 21, name: 'Aluno Teste', email: 'teste@example.com', phone: '81999990000', role: 'STUDENT' }
-const enrollment = { id: 31, className: item.name, days: item.days, timeRange: item.timeRange, instructor: item.instructor, status: 'CONFIRMED' }
+const enrollment = { id: 31, classOfferingId: item.id, className: item.name, days: item.days, timeRange: item.timeRange, instructor: item.instructor, status: 'CONFIRMED' }
 
-async function setup(page: Page, rejectEnrollment = false) {
-  const state = { authenticated: false, submissions: 0, enrolled: false }
+async function setup(page: Page, rejectEnrollment = false, initiallyEnrolled = false, enrollmentClassId = item.id) {
+  const state = { authenticated: false, submissions: 0, enrolled: initiallyEnrolled }
   await page.route('**/api/**', async route => {
     const request = route.request()
     const path = new URL(request.url()).pathname
@@ -16,10 +16,11 @@ async function setup(page: Page, rejectEnrollment = false) {
     if (path === '/api/catalog/classes') return json([item])
     if (path === '/api/auth/me') return json(state.authenticated ? user : { message: 'Entre para continuar' }, state.authenticated ? 200 : 401)
     if (path === '/api/auth/login' || path === '/api/auth/register') { state.authenticated = true; return json(user) }
-    if (path === '/api/student/dashboard') return json({ enrollments: state.enrolled ? [enrollment] : [], classes: [item] })
+    if (path === '/api/student/dashboard') return json({ enrollments: state.enrolled ? [{ ...enrollment, classOfferingId: enrollmentClassId }] : [], classes: [item] })
     if (path === '/api/student/enrollments' && request.method() === 'POST') {
       state.submissions++
       expect(request.postDataJSON()).toEqual({ classOfferingId: item.id })
+      if (state.enrolled && enrollmentClassId === item.id) return json({ status: 409, error: 'Conflict' }, 409)
       if (rejectEnrollment) return json({ message: 'Turma lotada' }, 409)
       state.enrolled = true
       return json(enrollment, 201)
@@ -66,6 +67,28 @@ test('voltar do pagamento não cria matrícula', async ({ page }) => {
   expect(state.submissions).toBe(0)
   await page.getByRole('button', { name: 'Inscrever-se' }).click()
   await expect(page.getByRole('heading', { name: 'Pagamento demonstrativo' })).toBeVisible()
+})
+
+test('Pix confirma novamente quando o aluno já está inscrito', async ({ page }) => {
+  const state = await setup(page, false, true)
+  await chooseAndLogin(page)
+  for (let attempt = 0; attempt < 2; attempt++) {
+    await page.getByRole('button', { name: 'Confirmar pagamento simulado' }).click()
+    await expect(page.getByRole('heading', { name: 'Inscrição confirmada!' })).toBeVisible()
+    await expect(page.getByText('#31', { exact: true })).toBeVisible()
+    await page.getByRole('button', { name: 'Ver minha agenda' }).click()
+    await expect(page.getByRole('button', { name: 'Cancelar', exact: true })).toHaveCount(1)
+    if (attempt === 0) await page.getByRole('button', { name: 'Inscrever-se' }).click()
+  }
+  expect(state.submissions).toBe(2)
+})
+
+test('matrícula de outra turma com mesmo nome não aprova uma turma lotada', async ({ page }) => {
+  await setup(page, true, true, 999)
+  await chooseAndLogin(page)
+  await page.getByRole('button', { name: 'Confirmar pagamento simulado' }).click()
+  await expect(page.getByRole('alert')).toHaveText('Turma lotada')
+  await expect(page.getByRole('heading', { name: 'Inscrição confirmada!' })).toHaveCount(0)
 })
 
 test('erro de matrícula não exibe pagamento aprovado', async ({ page }) => {

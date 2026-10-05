@@ -17,8 +17,9 @@ class SpiritHardFlowIntegrationTest {
  @Test void studentEnrollmentAppearsForAssignedTeacher()throws Exception{
   mvc.perform(get("/api/catalog/classes")).andExpect(status().isOk()).andExpect(jsonPath("$[0].name").exists());
   var student=login("aluno@spirithard.com","Aluno@123");
-  mvc.perform(post("/api/student/enrollments").session(student).contentType(MediaType.APPLICATION_JSON).content("{\"classOfferingId\":1}" )).andExpect(status().isCreated());
-  mvc.perform(get("/api/student/dashboard").session(student)).andExpect(status().isOk()).andExpect(jsonPath("$.enrollments[0].className").exists());
+  mvc.perform(post("/api/student/enrollments").session(student).contentType(MediaType.APPLICATION_JSON).content("{\"classOfferingId\":1}" )).andExpect(status().isCreated()).andExpect(jsonPath("$.classOfferingId").value(1));
+  mvc.perform(get("/api/student/dashboard").session(student)).andExpect(status().isOk()).andExpect(jsonPath("$.enrollments[0].className").exists()).andExpect(jsonPath("$.enrollments[0].classOfferingId").value(1));
+  mvc.perform(post("/api/student/enrollments").session(student).contentType(MediaType.APPLICATION_JSON).content("{\"classOfferingId\":1}" )).andExpect(status().isConflict());
   var teacher=login("aribeiro@spirithard.com","Professor@123");
   mvc.perform(get("/api/teacher/dashboard").session(teacher)).andExpect(status().isOk()).andExpect(jsonPath("$.classes[0].students[0].email").value("aluno@spirithard.com"));
  }

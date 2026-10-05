@@ -6,12 +6,20 @@ import PaymentDemo from './PaymentDemo'
 type Role = 'STUDENT' | 'TEACHER'
 type User = { id: number; name: string; email: string; phone: string; role: Role }
 type ClassItem = { id: number; name: string; modality: string; days: string; timeRange: string; instructor: string; price: number; capacity: number; available: boolean; note?: string }
-type Enrollment = { id: number; className: string; days: string; timeRange: string; instructor: string; status: string }
+type Enrollment = { id: number; classOfferingId: number; className: string; days: string; timeRange: string; instructor: string; status: string }
 type TeacherClass = { id: number; name: string; days: string; timeRange: string; students: { name: string; email: string; phone: string; status: string }[] }
 type Page = 'home' | 'login' | 'register' | 'dashboard'
 
 const API = import.meta.env.VITE_API_URL
   || `${window.location.protocol}//${window.location.hostname}:8080/api`
+
+class ApiError extends Error {
+  status: number
+  constructor(message: string, status: number) {
+    super(message)
+    this.status = status
+  }
+}
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const response = await fetch(`${API}${path}`, {
@@ -21,7 +29,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   })
   if (!response.ok) {
     const body = await response.json().catch(() => ({}))
-    throw new Error(body.detail || body.message || 'Não foi possível concluir a operação.')
+    throw new ApiError(body.detail || body.message || 'Não foi possível concluir a operação.', response.status)
   }
   return response.status === 204 ? (undefined as T) : response.json()
 }
@@ -122,7 +130,16 @@ function StudentDashboard({ user, classes, onLogout, notify }: { user: User; cla
   useEffect(() => { sessionStorage.removeItem('desiredClass'); void load() }, [])
   const confirmEnrollment = async () => {
     if (!checkout) throw new Error('Escolha uma turma para continuar.')
-    const enrollment = await request<Enrollment>('/student/enrollments', { method: 'POST', body: JSON.stringify({ classOfferingId: checkout.id }) })
+    let enrollment: Enrollment
+    try {
+      enrollment = await request<Enrollment>('/student/enrollments', { method: 'POST', body: JSON.stringify({ classOfferingId: checkout.id }) })
+    } catch (reason) {
+      if (!(reason instanceof ApiError) || reason.status !== 409) throw reason
+      const dashboard = await request<{ enrollments: Enrollment[] }>('/student/dashboard')
+      const existing = dashboard.enrollments.find(item => item.classOfferingId === checkout.id && item.status === 'CONFIRMED')
+      if (!existing) throw reason
+      enrollment = existing
+    }
     await load()
     return enrollment
   }
